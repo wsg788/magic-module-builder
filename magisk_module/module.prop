@@ -1,0 +1,6 @@
+id=magic_cam_spoofer
+name=Magic Camera Spoofer
+version=1.0.0
+versionCode=1
+author=AndroidFakeCam
+description=Magisk module to spoof Android camera for MagicCamApp.

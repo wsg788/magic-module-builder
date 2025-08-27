@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Colour palette inspired by the Universal Bubble UI kit (dark theme) -->
+    <color name="colorPrimary">#2094F3</color>
+    <color name="colorAccent">#4290F3</color>
+    <color name="colorAccentSecondary">#F69340</color>
+    <color name="colorBackground">#101A23</color>
+    <color name="colorSurface">#182834</color>
+    <color name="textPrimary">#FFFFFF</color>
+    <color name="textSecondary">#90B0CB</color>
+</resources>

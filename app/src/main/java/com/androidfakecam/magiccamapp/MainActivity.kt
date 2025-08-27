@@ -1,12 +1,15 @@
 package com.androidfakecam.magiccamapp
 
 import android.content.Intent
+import android.content.pm.ApplicationInfo
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
 import android.widget.Button
 import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import java.io.File
 
@@ -36,10 +39,26 @@ class MainActivity : AppCompatActivity() {
         }
 
         val selectAppButton = findViewById<Button>(R.id.btn_select_app)
-        selectAppButton.setOnClickListener {
-            // TODO: implement app picker in a future dev build
-            Toast.makeText(this, "App picker not implemented yet", Toast.LENGTH_SHORT).show()
-        }
+        selectAppButton.setOnClickListener { showAppPicker() }
+    }
+
+    private fun showAppPicker() {
+        val pm = packageManager
+        val apps = pm.getInstalledApplications(PackageManager.GET_META_DATA)
+            .filter { pm.getLaunchIntentForPackage(it.packageName) != null }
+            .sortedBy { it.loadLabel(pm).toString() }
+        val appNames = apps.map { it.loadLabel(pm).toString() }.toTypedArray()
+        AlertDialog.Builder(this)
+            .setTitle("Select App to Spoof")
+            .setItems(appNames) { _, which ->
+                val selectedApp = apps[which].packageName
+                // Save selected app to internal storage
+                val outFile = File(filesDir, "selected_app.txt")
+                outFile.writeText(selectedApp)
+                Toast.makeText(this, "Selected app: $selectedApp", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     private fun copyMediaToInternal(uri: Uri) {

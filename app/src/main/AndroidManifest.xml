@@ -1,12 +1,15 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.androidfakecam.magiccamapp">
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
-    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"/>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.androidfakecam.magiccamapp">
+
+    <!-- Permissions required for media access on different API levels -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
 
     <application
         android:allowBackup="true"
         android:label="@string/app_name"
-        android:theme="@style/Theme.AppCompat.Light">
+        android:theme="@style/Theme.MagicCamApp">
         <activity
             android:name=".MainActivity"
             android:exported="true">
@@ -16,4 +19,5 @@
             </intent-filter>
         </activity>
     </application>
+
 </manifest>

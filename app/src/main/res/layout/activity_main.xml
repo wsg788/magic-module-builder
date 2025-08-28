@@ -3,20 +3,35 @@
     android:orientation="vertical"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:padding="24dp"
     android:gravity="center"
-    android:padding="16dp">
+    android:background="@color/colorBackground">
+
+    <TextView
+        android:id="@+id/tv_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Magic Cam App"
+        android:textColor="@color/textPrimary"
+        android:textSize="28sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="32dp" />
 
     <Button
         android:id="@+id/btn_select_media"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Select Photo/Video" />
+        android:text="Select Photo/Video"
+        android:background="@drawable/btn_bubble"
+        android:textColor="@color/textPrimary"
+        android:layout_marginBottom="16dp" />
 
     <Button
         android:id="@+id/btn_select_app"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="Select App to Spoof"
-        android:layout_marginTop="16dp" />
+        android:background="@drawable/btn_bubble"
+        android:textColor="@color/textPrimary" />
 
 </LinearLayout>

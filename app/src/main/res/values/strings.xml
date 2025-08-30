@@ -1,3 +1,10 @@
 <resources>
     <string name="app_name">Magic Cam App</string>
+    <string name="select_photo_video">Select Photo/Video</string>
+    <string name="select_app_to_spoof">Select App to Spoof</string>
+    <string name="app_selected_message">Selected app: %1$s</string>
+    <string name="media_saved_message">Saved media: %1$s</string>
+    <string name="failed_to_read_image">Failed to read image</string>
+    <string name="failed_to_copy_media">Failed to copy media: %1$s</string>
+    <string name="cancel">Cancel</string>
 </resources>

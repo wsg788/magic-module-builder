@@ -1,0 +1,3 @@
+<resources>
+    <dimen name="app_picker_icon_padding">8dp</dimen>
+</resources>

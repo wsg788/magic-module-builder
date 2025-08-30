@@ -78,7 +78,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        AlertDialog.Builder(this, R.style.Theme_Material3_Dialog)
+        AlertDialog.Builder(this)
             .setTitle(R.string.select_app_to_spoof)
             .setAdapter(adapter) { dialog, which ->
                 val selected = appEntries[which]

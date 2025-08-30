@@ -1,42 +1,48 @@
 package com.androidfakecam.magiccamapp
 
-import android.content.pm.PackageManager
+import android.content.Intent
+import android.content.pm.ResolveInfo
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
+import android.graphics.drawable.BitmapDrawable
 import android.net.Uri
 import android.os.Bundle
+import android.provider.OpenableColumns
+import android.widget.BaseAdapter
 import android.widget.Button
+import android.widget.ImageView
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import java.io.File
+import java.io.FileOutputStream
+import java.io.InputStream
+import java.io.OutputStream
+import java.util.Locale
 
 /**
- * Main activity for the Magic Cam App.
+ * Dev Build 6 MainActivity
  *
- * This version implements a full app picker showing all launchable apps (system and user)
- * and improves image compression when saving selected media.  Selected apps are
- * persisted to filesDir/selected_app.txt and the most recent image or video is saved
- * to filesDir/spoof_media/current_media.jpg or current_media.mp4 for use by the Magisk module.
+ * This activity implements a media picker and a full app picker listing all launchable apps (system and user)
+ * along with their icons. Selected media is resized or copied to current_media.jpg/mp4 and the selected app
+ * package name is written to selected_app.txt for the Magisk module to read.
  */
 class MainActivity : AppCompatActivity() {
-
     private lateinit var pickMediaLauncher: ActivityResultLauncher<Array<String>>
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // register media picker
+        // register launcher for picking image or video
         pickMediaLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
-            uri?.let { copyMediaToInternal(it) }
+            uri?.let { handlePickedMedia(it) }
         }
 
         val selectMediaButton = findViewById<Button>(R.id.btn_select_media)
         selectMediaButton.setOnClickListener {
-            // allow both images and videos
             pickMediaLauncher.launch(arrayOf("image/*", "video/*"))
         }
 
@@ -46,77 +52,124 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * Display a picker dialog listing all apps with launcher intents.  Includes both
-     * system and user applications.  Saves the selected package name to a file.
-     */
     private fun showAppPicker() {
-        val pm = packageManager
-        // Get all installed applications that have launch intents
-        val apps = pm.getInstalledApplications(PackageManager.GET_META_DATA)
-            .filter { pm.getLaunchIntentForPackage(it.packageName) != null }
-            .sortedBy { it.loadLabel(pm).toString().lowercase() }
+        // query all launchable activities (both system and user apps)
+        val intent = Intent(Intent.ACTION_MAIN, null).addCategory(Intent.CATEGORY_LAUNCHER)
+        val activities: List<ResolveInfo> = packageManager.queryIntentActivities(intent, 0)
+        val appEntries = activities.map {
+            val appInfo = it.activityInfo.applicationInfo
+            val label = it.loadLabel(packageManager).toString()
+            val icon = it.loadIcon(packageManager)
+            AppEntry(label, appInfo.packageName, icon)
+        }.sortedBy { it.name.lowercase(Locale.getDefault()) }
 
-        val names = apps.map { it.loadLabel(pm).toString() }.toTypedArray()
-
-        AlertDialog.Builder(this)
-            .setTitle("Select App to Spoof")
-            .setItems(names) { _, which ->
-                val selected = apps[which]
-                // Write the selected package name to filesDir/selected_app.txt
-                val file = File(filesDir, "selected_app.txt")
-                file.writeText(selected.packageName)
-                Toast.makeText(this, "Selected ${names[which]}", Toast.LENGTH_SHORT).show()
+        val adapter = object : BaseAdapter() {
+            override fun getCount(): Int = appEntries.size
+            override fun getItem(position: Int): Any = appEntries[position]
+            override fun getItemId(position: Int): Long = position.toLong()
+            override fun getView(position: Int, convertView: android.view.View?, parent: android.view.ViewGroup): android.view.View {
+                val view = convertView ?: layoutInflater.inflate(android.R.layout.select_dialog_item, parent, false)
+                val entry = appEntries[position]
+                val textView = view.findViewById<TextView>(android.R.id.text1)
+                textView.text = entry.name
+                textView.setCompoundDrawablesWithIntrinsicBounds(entry.icon, null, null, null)
+                textView.compoundDrawablePadding = resources.getDimensionPixelSize(R.dimen.app_picker_icon_padding)
+                return view
             }
-            .setNegativeButton("Cancel", null)
+        }
+
+        AlertDialog.Builder(this, R.style.Theme_Material3_Dialog)
+            .setTitle(R.string.select_app_to_spoof)
+            .setAdapter(adapter) { dialog, which ->
+                val selected = appEntries[which]
+                // save selected package name
+                saveSelectedApp(selected.packageName)
+                Toast.makeText(this, getString(R.string.app_selected_message, selected.name), Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton(R.string.cancel, null)
             .show()
     }
 
-    /**
-     * Copy and convert the selected media into internal storage.  Images are
-     * resized to 640px width and compressed to JPEG at quality 80.  Videos are
-     * copied without modification but renamed to current_media.mp4.  Other files
-     * are copied with generic name current_media.
-     */
-    private fun copyMediaToInternal(uri: Uri) {
-        try {
-            val mimeType = contentResolver.getType(uri)
-            val destDir = File(filesDir, "spoof_media")
-            if (!destDir.exists()) destDir.mkdirs()
+    private fun saveSelectedApp(packageName: String) {
+        val file = File(filesDir, "selected_app.txt")
+        file.writeText(packageName)
+    }
 
-            if (mimeType != null && mimeType.startsWith("image/")) {
-                // Read bitmap and scale down to 640px width
-                contentResolver.openInputStream(uri)?.use { inputStream ->
-                    val bitmap = BitmapFactory.decodeStream(inputStream)
-                    val width = 640
-                    val ratio = width.toFloat() / bitmap.width
-                    val height = (bitmap.height * ratio).toInt()
-                    val scaled = Bitmap.createScaledBitmap(bitmap, width, height, true)
-                    val destFile = File(destDir, "current_media.jpg")
-                    destFile.outputStream().use { out ->
+    private fun handlePickedMedia(uri: Uri) {
+        try {
+            val mimeType = contentResolver.getType(uri) ?: ""
+            val destDir = File(filesDir, "spoof_media").apply { if (!exists()) mkdirs() }
+            val destFile: File = when {
+                mimeType.startsWith("image/") -> {
+                    val bmp = (contentResolver.openInputStream(uri)?.use { stream ->
+                        (android.graphics.drawable.Drawable.createFromStream(stream, null) as BitmapDrawable).bitmap
+                    }) ?: run {
+                        Toast.makeText(this, R.string.failed_to_read_image, Toast.LENGTH_SHORT).show(); return
+                    }
+                    val scaled = scaleBitmapDown(bmp, 640)
+                    val file = File(destDir, "current_media.jpg")
+                    FileOutputStream(file).use { out ->
                         scaled.compress(Bitmap.CompressFormat.JPEG, 80, out)
                     }
+                    file
                 }
-            } else if (mimeType != null && mimeType.startsWith("video/")) {
-                // Copy video and rename to current_media.mp4
-                val destFile = File(destDir, "current_media.mp4")
-                contentResolver.openInputStream(uri)?.use { input ->
-                    destFile.outputStream().use { output ->
-                        input.copyTo(output)
-                    }
+                mimeType.startsWith("video/") -> {
+                    val file = File(destDir, "current_media.mp4")
+                    copyStream(contentResolver.openInputStream(uri), FileOutputStream(file))
+                    file
                 }
-            } else {
-                // Other file types: copy with generic name
-                val destFile = File(destDir, "current_media")
-                contentResolver.openInputStream(uri)?.use { input ->
-                    destFile.outputStream().use { output ->
-                        input.copyTo(output)
-                    }
+                else -> {
+                    val name = getFileName(uri) ?: "current_media"
+                    val file = File(destDir, name)
+                    copyStream(contentResolver.openInputStream(uri), FileOutputStream(file))
+                    file
                 }
             }
-            Toast.makeText(this, "Media saved!", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, getString(R.string.media_saved_message, destFile.name), Toast.LENGTH_LONG).show()
         } catch (e: Exception) {
-            Toast.makeText(this, "Failed: ${e.message}", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, getString(R.string.failed_to_copy_media, e.localizedMessage), Toast.LENGTH_SHORT).show()
         }
     }
+
+    private fun scaleBitmapDown(bmp: Bitmap, maxSize: Int): Bitmap {
+        val width = bmp.width
+        val height = bmp.height
+        val ratio = if (width > height) maxSize.toFloat() / width else maxSize.toFloat() / height
+        val newWidth = (width * ratio).toInt()
+        val newHeight = (height * ratio).toInt()
+        return Bitmap.createScaledBitmap(bmp, newWidth, newHeight, true)
+    }
+
+    private fun getFileName(uri: Uri): String? {
+        var name: String? = null
+        if (uri.scheme == "content") {
+            contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (cursor.moveToFirst()) {
+                    name = cursor.getString(nameIndex)
+                }
+            }
+        }
+        if (name == null) {
+            val path = uri.path
+            val cut = path?.lastIndexOf('/') ?: -1
+            if (cut != -1) name = path?.substring(cut + 1)
+        }
+        return name
+    }
+
+    private fun copyStream(input: InputStream?, output: OutputStream?) {
+        if (input == null || output == null) return
+        input.use { i ->
+            output.use { o ->
+                val buf = ByteArray(4096)
+                var len: Int
+                while (i.read(buf).also { len = it } > 0) {
+                    o.write(buf, 0, len)
+                }
+            }
+        }
+    }
+
+    data class AppEntry(val name: String, val packageName: String, val icon: android.graphics.drawable.Drawable)
 }

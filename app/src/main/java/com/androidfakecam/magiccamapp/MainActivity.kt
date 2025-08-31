@@ -48,29 +48,29 @@ class MainActivity : AppCompatActivity() {
 
     /**
      * Show a dialog listing all launchable applications (both user and system apps).
-     * Uses PackageManager queryIntentActivities with ACTION_MAIN and CATEGORY_LAUNCHER to gather apps.
+     * Uses PackageManager to list installed applications with launch intents.
      */
     private fun showAppPicker() {
         val pm = packageManager
-        val intent = Intent(Intent.ACTION_MAIN, null)
-        intent.addCategory(Intent.CATEGORY_LAUNCHER)
-        val resolveInfos = pm.queryIntentActivities(intent, 0)
-        val apps: List<AppEntry> = resolveInfos.map { info ->
-            val appInfo = info.activityInfo.applicationInfo
-            AppEntry(
-                appInfo.loadLabel(pm).toString(),
-                appInfo.packageName,
-                appInfo.loadIcon(pm)
-            )
-        }.sortedBy { it.name.lowercase() }
+        // Build a list of all installed applications that have a launch intent
+        val apps: List<AppEntry> = pm.getInstalledApplications(android.content.pm.PackageManager.GET_META_DATA)
+            .filter { pm.getLaunchIntentForPackage(it.packageName) != null }
+            .map { appInfo ->
+                AppEntry(
+                    appInfo.loadLabel(pm).toString(),
+                    appInfo.packageName,
+                    appInfo.loadIcon(pm)
+                )
+            }.sortedBy { it.name.lowercase() }
 
+        // Use a custom layout for each list item so we can show an icon and label
         val adapter: ListAdapter = object : BaseAdapter() {
             override fun getCount(): Int = apps.size
             override fun getItem(position: Int): Any = apps[position]
             override fun getItemId(position: Int): Long = position.toLong()
             override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
-                val view = convertView ?: layoutInflater.inflate(android.R.layout.select_dialog_item, parent, false)
-                val iconView: ImageView = view.findViewById(android.R.id.icon)
+                val view = convertView ?: layoutInflater.inflate(R.layout.list_item_app, parent, false)
+                val iconView: ImageView = view.findViewById(R.id.icon)
                 val textView: TextView = view.findViewById(android.R.id.text1)
                 val entry = apps[position]
                 iconView.setImageDrawable(entry.icon)
@@ -86,7 +86,7 @@ class MainActivity : AppCompatActivity() {
                 // Persist selected package name into internal storage
                 val file = File(filesDir, "selected_app.txt")
                 file.writeText(selected.packageName)
-                Toast.makeText(this, "Selected ${selected.name}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Selected ${'$'}{selected.name}", Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton("Cancel", null)
             .show()
@@ -135,7 +135,7 @@ class MainActivity : AppCompatActivity() {
 
             Toast.makeText(this, "Media saved!", Toast.LENGTH_LONG).show()
         } catch (e: Exception) {
-            Toast.makeText(this, "Failed: ${e.message}", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Failed: ${'$'}{e.message}", Toast.LENGTH_LONG).show()
         }
     }
 }

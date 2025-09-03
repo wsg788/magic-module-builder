@@ -33,3 +33,14 @@ jobs:
       with:
         name: MagicCamSpoofer
         path: magic_cam_spoofer.zip
+
+    - name: Commit artifacts to repository
+      run: |
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        git config --global user.name "github-actions[bot]"
+        mkdir -p artifacts
+        cp app/build/outputs/apk/debug/app-debug.apk artifacts/MagicCamApp-debug.apk
+        cp magic_cam_spoofer.zip artifacts/MagicCamSpoofer.zip
+        git add artifacts/MagicCamApp-debug.apk artifacts/MagicCamSpoofer.zip
+        git commit -m "Add build artifacts [skip ci]"
+        git push
